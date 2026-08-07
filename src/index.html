@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DELUGE - Waterlogging & Flood-Prone Route Advisor | Kolkata Commuters</title>
+  
+  <!-- SEO & OpenGraph Meta Tags -->
+  <meta name="description" content="DELUGE is Kolkata's premier monsoon flood-route advisor. Real-time waterlogging assessment, Kolkata Metro updates, KMC pumping status, and safe bypass routes powered by Gemini AI.">
+  <meta name="keywords" content="Kolkata flood route, waterlogging Kolkata, Kolkata metro flood status, KMC pumping station, Kolkata bypass route, monsoon route advisor">
+  <meta property="og:title" content="DELUGE - Waterlogging & Flood-Prone Route Advisor">
+  <meta property="og:description" content="Real-time Kolkata flood risk navigation and safe bypass route engine for commuters.">
+  <meta property="og:type" content="website">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- React 18 & ReactDOM 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  
+  <!-- Babel Standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-cyan-500 selection:text-white">
+  
+  <!-- Root React App Mount Container -->
+  <div id="root"></div>
+
+  <!-- Load App Script -->
+  <script type="text/babel" src="./app.js"></script>
+</body>
+</html>
