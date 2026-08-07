@@ -268,6 +268,20 @@ async function analyzeKolkataQuery(userQuery) {
     result.risk_summary = `LIVE STATUS (${weather.precipitation} mm/hr Rain): ${result.risk_summary}`;
   }
 
+  // 5. DYNAMIC METRO OPERATING HOURS CHECK (Asia/Kolkata Timezone)
+  const kolkataTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const currentHour = kolkataTime.getHours();
+  const currentMin = kolkataTime.getMinutes();
+  const isSunday = kolkataTime.getDay() === 0;
+  const totalMinutes = currentHour * 60 + currentMin;
+
+  const openMinutes = (isSunday ? 9 : 6) * 60; // 6:00 AM Mon-Sat, 9:00 AM Sun
+  const closeMinutes = 22 * 60 + 30;          // 10:30 PM
+
+  if (totalMinutes < openMinutes || totalMinutes >= closeMinutes) {
+    result.metro_transit_status = `SERVICE CLOSED FOR THE NIGHT: Kolkata Metro is non-operational right now. Operating hours are ${isSunday ? '9:00 AM' : '6:00 AM'} to 10:30 PM. Commercial night buses and taxis available on main corridors.`;
+  }
+
   return result;
 }
 
@@ -276,7 +290,7 @@ async function analyzeKolkataQuery(userQuery) {
 // ============================================================================
 const DEFAULT_TICKER_ALERTS = [
   "PUMPING STATIONS ACTIVE: High-capacity pumps deployed at Dhapa, Palmer Bazar, Chetla, and Ultadanga.",
-  "KOLKATA METRO: Normal services running on Blue, Green, and Yellow lines.",
+  "METRO TIMINGS: Blue & Green Lines operate 6:00 AM – 10:30 PM (Mon-Sat) & 9:00 AM – 10:30 PM (Sun).",
   "RIVER WATCH: Hooghly water levels within safety thresholds.",
   "KMC HELPLINE: Dial 1800-345-3375 for urgent waterlogging support."
 ];
