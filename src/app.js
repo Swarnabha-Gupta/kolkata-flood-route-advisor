@@ -325,7 +325,7 @@ function App() {
   const [tickerAlerts, setTickerAlerts] = React.useState(DEFAULT_TICKER_ALERTS);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
-  const [analysisResult, setAnalysisResult] = React.useState(INITIAL_RESULT);
+  const [analysisResult, setAnalysisResult] = React.useState(null);
   const [errorMessage, setErrorMessage] = React.useState('');
 
   const [recentSearches, setRecentSearches] = React.useState(() => {
@@ -337,6 +337,23 @@ function App() {
 
   const mapRef = React.useRef(null);
   const mapLayersGroupRef = React.useRef(null);
+
+  // Automatically run live weather assessment on initial app load
+  React.useEffect(() => {
+    async function loadInitialStatus() {
+      setIsAnalyzing(true);
+      try {
+        const liveData = await analyzeKolkataQuery("Ultadanga and Central Kolkata");
+        setAnalysisResult(liveData);
+      } catch (err) {
+        console.warn("Initial live status load failed:", err);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    }
+
+    loadInitialStatus();
+  }, []);
 
   // Synchronize Dark Mode
   React.useEffect(() => {
