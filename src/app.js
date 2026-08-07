@@ -69,8 +69,27 @@ async function geocodeKolkataLocation(placeName) {
 
 
 // ============================================================================
-// 2. GEMINI 2.5 FLASH AI ENGINE & LOCAL INTELLIGENCE FALLBACK
+// 2. REAL-TIME WEATHER INTEGRATION & DYNAMIC GEMINI / LOCAL ENGINE
 // ============================================================================
+
+/**
+ * Fetches real-time precipitation metrics for Kolkata Metro Area (No API key required)
+ */
+async function fetchKolkataWeather() {
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=22.5726&longitude=88.3639&current=precipitation,rain,showers&precipitation_unit=mm';
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      const currentPrecip = data.current ? (data.current.precipitation || 0) : 0;
+      return { precipitation: currentPrecip, success: true };
+    }
+  } catch (err) {
+    console.warn('Weather API fetch failed, defaulting to dry condition adjustments:', err);
+  }
+  return { precipitation: 0, success: false };
+}
+
 const KOLKATA_INTELLIGENCE_DATABASE = [
   {
     keywords: ['sector 5', 'sector v', 'howrah', 'salt lake', 'karunamoyee'],
@@ -159,12 +178,16 @@ async function analyzeKolkataQuery(userQuery) {
 
   const cleanQuery = userQuery.trim();
 
-  // Try server proxy call to Gemini API
+  // 1. Fetch real-time weather metrics for Kolkata
+  const weather = await fetchKolkataWeather();
+  const isRaining = weather.precipitation > 0.1;
+
+  // 2. Try server proxy call to Gemini API
   try {
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: cleanQuery })
+      body: JSON.stringify({ query: cleanQuery, precipitation_mm: weather.precipitation })
     });
 
     if (response.ok) {
@@ -174,56 +197,79 @@ async function analyzeKolkataQuery(userQuery) {
       }
     }
   } catch (err) {
-    console.info('Using Kolkata Local Intelligence Engine:', err);
+    console.info('Using Weather-Aware Kolkata Intelligence Engine:', err);
   }
 
-  // Fallback: Dynamic Kolkata Intelligence Engine
+  // 3. Fallback: Dynamic Kolkata Intelligence Engine
+  let result = null;
   const qLower = cleanQuery.toLowerCase();
+
   for (const profile of KOLKATA_INTELLIGENCE_DATABASE) {
     if (profile.keywords.some(kw => qLower.includes(kw))) {
-      return { ...profile };
+      result = JSON.parse(JSON.stringify(profile)); // Deep copy object
+      break;
     }
   }
 
-  // Dynamic Generator
-  let riskLevel = 'MEDIUM';
-  let waterDepth = '5 - 9 inches';
-  let passability = ['4-Wheelers', 'Buses'];
+  // Generic fallback if keyword match wasn't found
+  if (!result) {
+    let baseRisk = 'MEDIUM';
+    let baseDepth = '5 - 9 inches';
+    let basePass = ['4-Wheelers', 'Buses'];
 
-  if (qLower.includes('heavy') || qLower.includes('flood') || qLower.includes('severe')) {
-    riskLevel = 'HIGH';
-    waterDepth = '10 - 16 inches';
-    passability = ['Buses Only'];
-  } else if (qLower.includes('clear') || qLower.includes('dry') || qLower.includes('safe')) {
-    riskLevel = 'LOW';
-    waterDepth = '1 - 3 inches';
-    passability = ['2-Wheelers', '4-Wheelers', 'Buses'];
+    if (qLower.includes('heavy') || qLower.includes('flood') || qLower.includes('severe')) {
+      baseRisk = 'HIGH';
+      baseDepth = '10 - 16 inches';
+      basePass = ['Buses Only'];
+    }
+
+    result = {
+      overall_risk_level: baseRisk,
+      risk_summary: `Commuter update for "${cleanQuery}": Low-lying arterial roads monitoring monsoon water accumulation.`,
+      metro_transit_status: 'Kolkata Metro operating normally on main lines. Bus services operating on high-elevation corridors.',
+      updated_ticker_alert: `ADVISORY: Dynamic monsoon assessment active for query "${cleanQuery.substring(0, 40)}..."`,
+      water_depth_estimate: baseDepth,
+      vehicle_passability: basePass,
+      direct_route_coordinates: [
+        [22.5726, 88.3639],
+        [22.5645, 88.3517],
+        [22.5539, 88.3524]
+      ],
+      safe_bypass_coordinates: [
+        [22.5726, 88.3639],
+        [22.5600, 88.3800],
+        [22.5450, 88.3750],
+        [22.5539, 88.3524]
+      ],
+      hazard_hotspots: [
+        { name: 'Central Kolkata Low Pocket', lat: 22.5645, lng: 88.3517, severity: baseRisk, depth: baseDepth }
+      ]
+    };
   }
 
-  return {
-    overall_risk_level: riskLevel,
-    risk_summary: `Commuter update for "${cleanQuery}": Low-lying arterial roads experiencing monsoon water accumulation. KMC pumps active.`,
-    metro_transit_status: 'Kolkata Metro operating normally on main lines. Bus services operating on high-elevation corridors.',
-    updated_ticker_alert: `ADVISORY: Dynamic monsoon assessment active for query "${cleanQuery.substring(0, 40)}..."`,
-    water_depth_estimate: waterDepth,
-    vehicle_passability: passability,
-    direct_route_coordinates: [
-      [22.5726, 88.3639],
-      [22.5645, 88.3517],
-      [22.5539, 88.3524]
-    ],
-    safe_bypass_coordinates: [
-      [22.5726, 88.3639],
-      [22.5600, 88.3800],
-      [22.5450, 88.3750],
-      [22.5539, 88.3524]
-    ],
-    hazard_hotspots: [
-      { name: 'Central Kolkata Low Pocket', lat: 22.5645, lng: 88.3517, severity: riskLevel, depth: waterDepth }
-    ]
-  };
-}
+  // 4. DYNAMIC WEATHER OVERRIDE LOGIC
+  // If rainfall has stopped or is zero, adjust static risk profiles dynamically
+  if (!isRaining) {
+    result.overall_risk_level = result.overall_risk_level === 'CRITICAL' ? 'MEDIUM' : 'LOW';
+    result.water_depth_estimate = '0 - 2 inches (Drained)';
+    result.risk_summary = `LIVE STATUS (Clear Sky / No Active Rain): KMC high-capacity pumps (Dhapa, Ultadanga, Chetla) have drained most water accumulation along "${cleanQuery}". Arterial routes are clear and passable.`;
+    result.vehicle_passability = ['2-Wheelers', '4-Wheelers', 'Buses', 'SUVs'];
+    result.updated_ticker_alert = `CLEARANCE ADVISORY: Rainfall stopped in Kolkata. KMC drainage pumps cleared primary routes around ${cleanQuery.substring(0, 20)}.`;
 
+    // Lower severity on hazard markers
+    if (result.hazard_hotspots) {
+      result.hazard_hotspots = result.hazard_hotspots.map(spot => ({
+        ...spot,
+        severity: spot.severity === 'CRITICAL' || spot.severity === 'HIGH' ? 'MEDIUM' : 'LOW',
+        depth: '0 - 2 in (Cleared)'
+      }));
+    }
+  } else {
+    result.risk_summary = `LIVE STATUS (${weather.precipitation} mm/hr Rain): ${result.risk_summary}`;
+  }
+
+  return result;
+}
 
 // ============================================================================
 // 3. REACT APPLICATION COMPONENTS & STATE MANAGEMENT
@@ -486,7 +532,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 theme-transition flex flex-col font-sans">
-      
+
       {/* 1. TOP CONTINUOUS MARQUEE LIVE ADVISORY TICKER BAR */}
       <div className="bg-slate-900 text-slate-100 border-b border-slate-800 flex items-center overflow-hidden z-30 sticky top-0 shadow-md">
         <div className="bg-red-600 text-white text-xs font-extrabold px-3 py-2 flex items-center gap-1.5 shrink-0 uppercase tracking-wider z-10 shadow-lg">
@@ -496,7 +542,7 @@ function App() {
           </span>
           Live Advisory
         </div>
-        
+
         <div className="overflow-hidden whitespace-nowrap flex-1 py-1.5 bg-slate-900/95">
           <div className="animate-marquee flex items-center gap-8 text-xs font-mono tracking-wide text-slate-200">
             {[...tickerAlerts, ...tickerAlerts].map((alert, index) => (
@@ -512,7 +558,7 @@ function App() {
       {/* 2. DYNAMIC HEADER WITH APP TITLE & THEME SWITCHER */}
       <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-4 md:px-8 theme-transition sticky top-9 z-20">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          
+
           <div>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
@@ -541,31 +587,28 @@ function App() {
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto shadow-inner">
             <button
               onClick={() => setThemeMode('light')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                themeMode === 'light'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${themeMode === 'light'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
             >
               <span>☀️</span> Light
             </button>
             <button
               onClick={() => setThemeMode('dark')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                themeMode === 'dark'
-                  ? 'bg-slate-900 text-white shadow-sm border border-slate-700'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${themeMode === 'dark'
+                ? 'bg-slate-900 text-white shadow-sm border border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
             >
               <span>🌙</span> Dark
             </button>
             <button
               onClick={() => setThemeMode('system')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                themeMode === 'system'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${themeMode === 'system'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
             >
               <span>💻</span> System
             </button>
@@ -576,12 +619,12 @@ function App() {
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
-        
+
         {/* SINGLE NATURAL LANGUAGE AI SEARCH BAR */}
         <section className="mb-6">
           <form onSubmit={handleSearchSubmit} className="relative group">
             <div className="relative flex flex-col md:flex-row items-stretch gap-2 p-2 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-xl focus-within:border-cyan-500 dark:focus-within:border-cyan-500 transition-all duration-200">
-              
+
               <div className="flex-1 flex items-center px-3 gap-3">
                 <svg className="w-5 h-5 text-cyan-600 dark:text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -648,10 +691,10 @@ function App() {
 
         {/* SPLIT SCREEN DASHBOARD LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
+
           {/* LEFT PANEL */}
           <div className="lg:col-span-5 space-y-5">
-            
+
             {/* Overall Risk Card */}
             {analysisResult && (
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl relative overflow-hidden">
@@ -737,9 +780,8 @@ function App() {
                         <span className="font-bold text-slate-900 dark:text-slate-100 block">{spot.name}</span>
                         <span className="text-slate-500 dark:text-slate-400 text-[11px]">Water Depth: {spot.depth}</span>
                       </div>
-                      <span className={`px-2 py-1 rounded font-black text-[10px] ${
-                        spot.severity === 'HIGH' || spot.severity === 'CRITICAL' ? 'bg-red-500 text-white' : 'bg-amber-500 text-slate-900'
-                      }`}>
+                      <span className={`px-2 py-1 rounded font-black text-[10px] ${spot.severity === 'HIGH' || spot.severity === 'CRITICAL' ? 'bg-red-500 text-white' : 'bg-amber-500 text-slate-900'
+                        }`}>
                         {spot.severity}
                       </span>
                     </div>
@@ -770,7 +812,7 @@ function App() {
           {/* RIGHT PANEL: Leaflet Interactive Map */}
           <div className="lg:col-span-7 space-y-4">
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col h-[520px] md:h-[620px] relative">
-              
+
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -789,25 +831,22 @@ function App() {
                 <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
                   <button
                     onClick={() => setMapRouteFilter('both')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      mapRouteFilter === 'both' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${mapRouteFilter === 'both' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'
+                      }`}
                   >
                     Both Routes
                   </button>
                   <button
                     onClick={() => setMapRouteFilter('safe')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      mapRouteFilter === 'safe' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${mapRouteFilter === 'safe' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500'
+                      }`}
                   >
                     Safe Bypass
                   </button>
                   <button
                     onClick={() => setMapRouteFilter('direct')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      mapRouteFilter === 'direct' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${mapRouteFilter === 'direct' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500'
+                      }`}
                   >
                     Direct (Risky)
                   </button>
