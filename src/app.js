@@ -561,11 +561,11 @@ function App() {
 
           <div>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.096.185l-1.05.525A2 2 0 002.402 17.61L3 20c.2.8.9 1.4 1.7 1.4h14.6c.8 0 1.5-.6 1.7-1.4l.6-2.39a2 2 0 00-1.05-2.182l-1.122-.561zM12 3v9m0 0l-3-3m3 3l3-3"></path>
-                </svg>
-              </div>
+              <img
+                src="./favicon.png"
+                alt="DELUGE Logo"
+                className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-cyan-500/20 border border-slate-200/20"
+              />
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase font-sans">
