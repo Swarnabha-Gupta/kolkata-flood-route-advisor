@@ -58,25 +58,47 @@ class DelugeHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404, "Endpoint not found")
 
+    def fetch_kolkata_precipitation(self):
+        """Fetch current precipitation rate for Kolkata (22.5726 N, 88.3639 E) in mm/hr"""
+        try:
+            url = "https://api.open-meteo.com/v1/forecast?latitude=22.5726&longitude=88.3639&current=precipitation&precipitation_unit=mm"
+            req = urllib.request.Request(url, headers={'User-Agent': 'DelugeApp/1.0'})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                return data.get('current', {}).get('precipitation', 0.0)
+        except Exception as e:
+            print(f"[Deluge Server] Weather fetch failed: {e}", file=sys.stderr)
+            return 0.0
+
     def call_gemini_api(self, query, api_key):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        
+        # Get live precipitation
+        precip = self.fetch_kolkata_precipitation()
         
         prompt_text = f"""
 You are the AI engine for DELUGE - Waterlogging & Flood-Prone Route Advisor for Kolkata.
 Analyze this Kolkata commuter query: "{query}"
 
-Respond with ONLY raw valid JSON matching this schema:
+REAL-TIME DATA CONTEXT:
+- Current Weather / Hourly Precipitation in Kolkata: {precip} mm/hr
+
+INSTRUCTIONS:
+1. Search recent traffic and news updates from Kolkata Traffic Police and Kolkata Municipal Corporation (KMC).
+2. If current rainfall is low/zero (0 - 2 mm/hr), reflect that primary thoroughfares are cleared by KMC pumping stations.
+3. Structure your response to return ONLY raw valid JSON matching this schema:
+
 {{
   "overall_risk_level": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-  "risk_summary": "Detailed explanation of waterlogging & travel risks in Kolkata",
-  "metro_transit_status": "Update regarding Kolkata Metro lines (Blue/Green/Purple/Yellow) or bus transport",
+  "risk_summary": "Detailed, live explanation of waterlogging & travel risks in Kolkata",
+  "metro_transit_status": "Update regarding Kolkata Metro lines or bus transport",
   "updated_ticker_alert": "Short headline alert (max 80 chars) for live marquee header",
-  "water_depth_estimate": "Estimated water depth string e.g. 6 - 12 inches",
+  "water_depth_estimate": "Estimated water depth string e.g. 0 - 2 inches",
   "vehicle_passability": ["2-Wheelers", "4-Wheelers", "Buses"],
-  "direct_route_coordinates": [[lat, lng], [lat, lng], ...],
-  "safe_bypass_coordinates": [[lat, lng], [lat, lng], ...],
+  "direct_route_coordinates": [[22.5726, 88.4339], [22.5830, 88.3426]],
+  "safe_bypass_coordinates": [[22.5726, 88.4339], [22.5414, 88.3484], [22.5830, 88.3426]],
   "hazard_hotspots": [
-    {{ "name": "Hotspot Location Name", "lat": 22.5, "lng": 88.35, "severity": "HIGH", "depth": "10-12 in" }}
+    {{ "name": "Hotspot Location Name", "lat": 22.5, "lng": 88.35, "severity": "LOW", "depth": "0 - 2 in" }}
   ]
 }}
 All coordinates MUST be realistic latitude/longitude pairs within Kolkata (lat 22.40 to 22.68, lng 88.30 to 88.48).
@@ -85,6 +107,9 @@ All coordinates MUST be realistic latitude/longitude pairs within Kolkata (lat 2
             "contents": [{
                 "parts": [{"text": prompt_text}]
             }],
+            "tools": [
+                {"google_search": {}}  # Enables Google Search Grounding for live real-time reports
+            ],
             "generationConfig": {
                 "temperature": 0.2,
                 "response_mime_type": "application/json"
@@ -97,7 +122,7 @@ All coordinates MUST be realistic latitude/longitude pairs within Kolkata (lat 2
             headers={'Content-Type': 'application/json'}
         )
 
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=12) as resp:
             res_data = json.loads(resp.read().decode('utf-8'))
             text = res_data['candidates'][0]['content']['parts'][0]['text']
             return json.loads(text)
