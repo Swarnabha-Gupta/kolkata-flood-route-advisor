@@ -27,11 +27,6 @@ DELUGE is a full-stack, responsive, mobile-first web application designed specif
 
 ## 🛠️ How to Run
 
-Run the Python HTTP & API server:
+Run this link in you browser:
 
-```bash
-python server.py
-```
-
-Then open your browser and navigate to:
-[http://localhost:8080](http://localhost:8080)
+https://kolkata-flood-route-advisor.vercel.app/
