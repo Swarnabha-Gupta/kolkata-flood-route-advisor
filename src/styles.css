@@ -17,19 +17,20 @@ body {
   0% {
     transform: translateX(0%);
   }
+
   100% {
     transform: translateX(-50%);
   }
 }
 
-.animate-marquee {
+.animate-marquee,
+.animate-marquee:hover,
+.animate-marquee:focus,
+.animate-marquee:active {
   display: flex;
   width: max-content;
   animation: marquee 35s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
+  animation-play-state: running !important;
 }
 
 /* Pulsing Red Circular Marker for Hazard Hotspots on Leaflet */
@@ -38,10 +39,12 @@ body {
     transform: scale(0.8);
     opacity: 0.8;
   }
+
   50% {
     transform: scale(1.4);
     opacity: 0.3;
   }
+
   100% {
     transform: scale(0.8);
     opacity: 0.8;
